@@ -49,7 +49,10 @@ function FAQItem({
     const next = !open;
     const el = bodyRef.current;
 
-    if (!el) return;
+    if (!el) {
+      setOpen(next);
+      return;
+    }
 
     const prefersReduced = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -59,6 +62,9 @@ function FAQItem({
       setOpen(next);
       return;
     }
+
+    // Prevent overlapping tweens if the user clicks rapidly mid-animation
+    gsap.killTweensOf(el);
 
     if (next) {
       setOpen(true);

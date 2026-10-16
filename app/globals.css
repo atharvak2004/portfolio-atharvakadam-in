@@ -12,12 +12,6 @@
   scroll-behavior: smooth;
 }
 
-@media (min-width: 768px) {
-  .frame {
-    padding: 16px;
-  }
-}
-
 .eyebrow {
   display: inline-flex;
   align-items: center;

@@ -1,124 +1,100 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
+import { FaQuoteLeft } from "react-icons/fa6";
 import { useReveal } from "@/lib/useReveal";
 
 const testimonials = [
   {
-    name: "Daniel Carter",
-    role: "Founder of Flowbit",
-    image: "/testimonials/daniel-carter.png",
+    name: "Prasanna Deshmukh",
+    role: "Founder of RisingUp",
     quote:
       "Atharva transformed our concept into a product that's intuitive and visually striking. His attention to detail is unmatched.",
   },
   {
-    name: "Michael Reeves",
-    role: "PM at NovaLabs",
-    image: "/testimonials/michael-reeves.png",
+    name: "Nilesh Chavan",
+    role: "Founder of Bo-Stone Robo",
     quote:
       "Working with Atharva felt like adding a co-founder, not a contractor. He pushed our product forward and delivered beyond expectations.",
   },
 ];
 
-// Stack offsets — index 0 = front card, higher = further back
-const CARD_STYLE = (distanceFromFront: number) => {
-  if (distanceFromFront === 0) {
-    return {
-      x: 0,
-      y: 0,
-      scale: 1,
-      rotate: 0,
-      zIndex: 30,
-      boxShadow: "0 24px 40px -22px rgba(0,0,0,0.35)",
-    };
-  }
-  return {
-    x: 18 * distanceFromFront,
-    y: 18 * distanceFromFront,
-    scale: 1 - 0.06 * distanceFromFront,
-    rotate: -4 * distanceFromFront,
-    zIndex: 30 - distanceFromFront,
-    boxShadow: "0 12px 24px -16px rgba(0,0,0,0.25)",
-  };
-};
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const pad = (n: number) => String(n).padStart(2, "0");
 
 export default function Testimonials() {
   const ref = useReveal<HTMLDivElement>();
   const [index, setIndex] = useState(0);
-  const quoteRef = useRef<HTMLParagraphElement | null>(null);
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Set initial stack positions on mount
-  useEffect(() => {
-    testimonials.forEach((_, i) => {
-      const dist =
-        (i - index + testimonials.length) % testimonials.length;
-      const el = cardRefs.current[i];
-      if (el) gsap.set(el, CARD_STYLE(dist));
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const busy = useRef(false);
+  const direction = useRef<1 | -1>(1);
+  const firstRender = useRef(true);
 
-  const goTo = (next: number) => {
-    const wrapped =
-      (next + testimonials.length) % testimonials.length;
+  // Slide-out: runs on click, then swaps the content
+  const goTo = (next: number, dir: 1 | -1) => {
+    if (busy.current) return;
 
-    const reduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
+    const wrapped = (next + testimonials.length) % testimonials.length;
+    if (wrapped === index) return;
 
-    // Animate the image stack: front card slides back/under,
-    // the next-up card rises to the front and on top.
-    testimonials.forEach((_, i) => {
-      const dist =
-        (i - wrapped + testimonials.length) % testimonials.length;
-      const el = cardRefs.current[i];
-      if (!el) return;
-
-      if (reduced) {
-        gsap.set(el, CARD_STYLE(dist));
-      } else {
-        gsap.to(el, {
-          ...CARD_STYLE(dist),
-          duration: 0.55,
-          ease: "power3.out",
-        });
-      }
-    });
-
-    const el = quoteRef.current;
-
-    if (!el || reduced) {
+    const el = contentRef.current;
+    if (!el || prefersReducedMotion()) {
       setIndex(wrapped);
       return;
     }
 
-    gsap.to(el, {
-      opacity: 0,
-      y: -8,
-      duration: 0.25,
-      ease: "power2.out",
-      onComplete: () => {
-        setIndex(wrapped);
+    busy.current = true;
+    direction.current = dir;
 
-        gsap.fromTo(
-          el,
-          {
-            opacity: 0,
-            y: 8,
-          },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.35,
-            ease: "power2.out",
-          }
-        );
-      },
+    gsap.to(el.querySelectorAll(".t-item"), {
+      opacity: 0,
+      x: -28 * dir,
+      duration: 0.28,
+      stagger: 0.04,
+      ease: "power2.in",
+      onComplete: () => setIndex(wrapped),
     });
   };
+
+  // Slide-in: runs after React has rendered the new testimonial
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+
+    const el = contentRef.current;
+    if (!el || prefersReducedMotion()) {
+      busy.current = false;
+      return;
+    }
+
+    const items = el.querySelectorAll(".t-item");
+    const tween = gsap.fromTo(
+      items,
+      { opacity: 0, x: 28 * direction.current },
+      {
+        opacity: 1,
+        x: 0,
+        duration: 0.5,
+        stagger: 0.08,
+        ease: "power3.out",
+        onComplete: () => {
+          busy.current = false;
+        },
+      }
+    );
+
+    return () => {
+      tween.kill();
+      busy.current = false;
+    };
+  }, [index]);
 
   const active = testimonials[index];
 
@@ -137,23 +113,14 @@ export default function Testimonials() {
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mx-auto flex max-w-3xl items-center justify-center gap-4 sm:gap-5 md:gap-7">
-          {/* Quote Icon */}
-          <div className="flex h-9 w-9 shrink-0 rotate-[-10deg] items-center justify-center overflow-hidden rounded-[9px] bg-rust sm:h-10 sm:w-10">
-            <Image
-              src="/quote.png"
-              alt="Quote"
-              width={24}
-              height={24}
-              className="h-5 w-5 object-contain sm:h-6 sm:w-6"
-            />
+          <div className="flex h-9 w-9 shrink-0 rotate-[-10deg] items-center justify-center rounded-[9px] bg-rust text-cream sm:h-10 sm:w-10">
+            <FaQuoteLeft className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
           </div>
 
-          {/* Heading */}
           <h2 className="shrink-0 font-display text-3xl font-black uppercase leading-none tracking-[-0.04em] sm:text-4xl md:text-5xl">
             TESTIMONIALS
           </h2>
 
-          {/* Description */}
           <p className="max-w-[230px] font-mono text-sm leading-[1.4] text-ink sm:text-[15px]">
             Hear from those who&apos;ve
             <br className="hidden sm:block" />
@@ -163,114 +130,68 @@ export default function Testimonials() {
           </p>
         </div>
 
-        {/* Testimonial */}
+        {/* Testimonial card */}
         <div
           ref={ref}
-          className="reveal-item mt-10 grid gap-7 sm:mt-12 md:grid-cols-[1.05fr_0.95fr] md:items-center md:gap-10 lg:gap-12"
+          className="reveal-item mx-auto mt-10 max-w-3xl rounded-[16px] border border-black/10 bg-cream-dark p-6 sm:mt-12 sm:p-10"
         >
-          {/* Images */}
-          <div className="overflow-hidden rounded-[16px] border border-black/10 bg-cream-dark">
-            {/* Stacked card deck */}
-            <div className="p-3 sm:p-4">
-              <div className="relative h-[194px] sm:h-[244px] md:h-[284px] lg:h-[314px]">
-                {testimonials.map((t, i) => (
-                  <div
-                    key={t.name}
-                    ref={(el) => {
-                      cardRefs.current[i] = el;
-                    }}
-                    className="absolute inset-0 overflow-hidden rounded-[14px] border border-black/10 bg-[#f4f1e8]"
-                  >
-                    <Image
-                      src={t.image}
-                      alt={t.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 60vw, 30vw"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Names */}
-            <div className="grid grid-cols-2 border-t border-black/10">
-              <div className="px-3 py-3 sm:px-4">
-                <p className="font-mono text-xs font-medium text-ink sm:text-sm">
-                  Daniel Carter
-                </p>
-
-                <p className="mt-1 font-mono text-[10px] text-rust sm:text-xs">
-                  Founder of Flowbit
-                </p>
-              </div>
-
-              <div className="border-l border-black/10 px-3 py-3 sm:px-4">
-                <p className="font-mono text-xs font-medium text-ink sm:text-sm">
-                  Michael Reeves
-                </p>
-
-                <p className="mt-1 font-mono text-[10px] text-rust sm:text-xs">
-                  PM at NovaLabs
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Quote Content */}
-          <div className="flex flex-col justify-between md:min-h-[300px] lg:min-h-[330px]">
-            {/* Quote Mark */}
+          {/* Animated content (quote + person) */}
+          <div ref={contentRef} className="flex min-h-[220px] flex-col justify-between sm:min-h-[240px]">
             <div>
-              <Image
-                src="/quote.png"
-                alt="Quote mark"
-                width={32}
-                height={32}
-                className="h-7 w-7 object-contain sm:h-8 sm:w-8"
-              />
+              <FaQuoteLeft className="t-item h-6 w-6 text-rust sm:h-7 sm:w-7" />
 
-              {/* Quote */}
-              <p
-                ref={quoteRef}
-                className="mt-4 max-w-lg font-mono text-sm leading-[1.7] text-ink sm:text-base"
-              >
+              <p className="t-item mt-4 font-mono text-base leading-[1.7] text-ink sm:text-lg">
                 {active.quote}
               </p>
             </div>
 
-            {/* Bottom Controls */}
-            <div className="mt-8 flex items-center justify-between md:mt-0">
-              {/* Active person */}
-              <div>
-                <p className="font-mono text-sm font-medium text-ink">
-                  {active.name}
-                </p>
+            <div className="t-item mt-8">
+              <p className="font-mono text-sm font-medium text-ink">
+                {active.name}
+              </p>
+              <p className="mt-1 font-mono text-xs text-rust">{active.role}</p>
+            </div>
+          </div>
 
-                <p className="mt-1 font-mono text-xs text-rust">
-                  {active.role}
-                </p>
+          {/* Controls (not animated, always visible) */}
+          <div className="mt-8 flex items-center justify-between border-t border-ink/10 pt-5">
+            {/* Counter + dots */}
+            <div className="flex items-center gap-4">
+              <span className="font-mono text-xs text-ink/60">
+                {pad(index + 1)} / {pad(testimonials.length)}
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                {testimonials.map((t, i) => (
+                  <button
+                    key={t.name}
+                    onClick={() => goTo(i, i > index ? 1 : -1)}
+                    aria-label={`Show testimonial from ${t.name}`}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      i === index ? "w-6 bg-rust" : "w-1.5 bg-ink/20 hover:bg-ink/40"
+                    }`}
+                  />
+                ))}
               </div>
+            </div>
 
-              {/* Navigation */}
-              <div className="flex items-center gap-3">
-                {/* Previous */}
-                <button
-                  onClick={() => goTo(index - 1)}
-                  aria-label="Previous testimonial"
-                  className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-ink/15 bg-cream transition-all duration-200 hover:bg-ink hover:text-cream active:scale-95"
-                >
-                  ←
-                </button>
+            {/* Arrows */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => goTo(index - 1, -1)}
+                aria-label="Previous testimonial"
+                className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-ink/15 bg-cream transition-all duration-200 hover:bg-ink hover:text-cream active:scale-95"
+              >
+                ←
+              </button>
 
-                {/* Next */}
-                <button
-                  onClick={() => goTo(index + 1)}
-                  aria-label="Next testimonial"
-                  className="font-mono text-xs text-rust transition-opacity hover:opacity-70"
-                >
-                  Next →
-                </button>
-              </div>
+              <button
+                onClick={() => goTo(index + 1, 1)}
+                aria-label="Next testimonial"
+                className="flex h-9 w-9 items-center justify-center rounded-[8px] border border-ink/15 bg-cream transition-all duration-200 hover:bg-ink hover:text-cream active:scale-95"
+              >
+                →
+              </button>
             </div>
           </div>
         </div>
