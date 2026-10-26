@@ -19,19 +19,19 @@ const WHATSAPP_URL = `https://wa.me/919765208456?text=${encodeURIComponent(
 const socials = [
   {
     name: "GitHub",
-    href: "https://github.com/",
+    href: "https://github.com/atharvak2004",
     icon: FaGithub,
   },
   {
     name: "LinkedIn",
-    href: "https://www.linkedin.com/",
+    href: "https://www.linkedin.com/in/atharva-kadam-365170326/?isSelfProfile=true",
     icon: FaLinkedinIn,
   },
   {
     name: "Instagram",
-    href: "https://www.instagram.com/",
+    href: "https://www.instagram.com/atharva_k_04/",
     icon: FaInstagram,
-  },
+  },  
   {
     name: "WhatsApp",
     href: WHATSAPP_URL,
